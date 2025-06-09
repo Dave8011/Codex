@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,37 +9,45 @@
 <body>
   <div class="container">
     <h1>🗂 Codex Projects</h1>
-    <p>Select a project to view its code:</p>
-    <ul id="project-list"></ul>
+    <p>Auto-detected folders in <code>/Codes</code>:</p>
+    <ul id="project-list">Loading...</ul>
   </div>
 
   <script>
- <script>
-  const repoOwner = "Dave8011"; // Replace with your GitHub username
-  const repoName = "Codex";
+    const repoOwner = "Dave8011";
+    const repoName = "Codex";
+    const path = "Codes";
 
-  const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/Codes`;
+    const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
 
-  async function loadProjects() {
-    try {
-      const response = await fetch(apiUrl);
-      const data = await response.json();
-
+    async function loadProjects() {
       const list = document.getElementById("project-list");
-      data.forEach(item => {
-        if (item.type === "dir") {
-          const li = document.createElement("li");
-          li.innerHTML = `<a href="./Codes/${item.name}/index.html" target="_blank">📁 ${item.name}</a>`;
-          list.appendChild(li);
+      list.innerHTML = "";
+
+      try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error("GitHub API error");
+        const data = await res.json();
+
+        data.forEach(item => {
+          if (item.type === "dir") {
+            const li = document.createElement("li");
+            li.innerHTML = `<a href="./Codes/${item.name}/index.html" target="_blank">📁 ${item.name}</a>`;
+            list.appendChild(li);
+          }
+        });
+
+        if (list.innerHTML === "") {
+          list.innerHTML = "<li>No folders found.</li>";
         }
-      });
-    } catch (err) {
-      console.error("Failed to load folder list:", err);
+
+      } catch (err) {
+        list.innerHTML = "<li>⚠️ Failed to load folder list.</li>";
+        console.error(err);
+      }
     }
-  }
 
-  loadProjects();
-</script>
-
+    loadProjects();
+  </script>
 </body>
 </html>
