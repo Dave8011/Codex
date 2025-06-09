@@ -1,138 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Codex Manager</title>
-  <link rel="stylesheet" href="style.css" />
-  <link href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <title>Codex Viewer & Editor</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>📁 Codex File Manager</h1>
+  <h1>📂 Codex – GitHub Viewer</h1>
 
-    <div class="toolbar">
-      <button onclick="toggleTheme()">🌓 Toggle Theme</button>
-      <button onclick="toggleAddUI()">➕ Add New File</button>
-    </div>
+  <div id="file-tree"></div>
 
-    <div id="projects">Loading projects...</div>
-
-    <!-- Add File UI -->
-    <div id="add-ui" class="hidden">
-      <h2>➕ Create New File</h2>
-      <label>Folder Name: <input id="folder-input" placeholder="e.g. naturtint_site" /></label><br>
-      <label>File Name: <input id="file-input" placeholder="e.g. script.js" /></label><br>
-      <label>Code:</label><br>
-      <textarea id="code-input" placeholder="Paste your code here..."></textarea><br>
-      <button onclick="pushToGitHub()">🚀 Push to GitHub</button>
-    </div>
-
-    <!-- Code Viewer -->
-    <div id="code-viewer"></div>
+  <div id="code-viewer" style="display: none;">
+    <h2 id="file-title"></h2>
+    <textarea id="editor"></textarea><br>
+    <button onclick="saveFile()">💾 Save</button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.js"></script>
+  <hr>
+
+  <h3>➕ Add New File</h3>
+  <input id="folder-name" placeholder="Folder name (e.g. vitashop_site)" />
+  <input id="file-name" placeholder="File name (e.g. index.html)" />
+  <textarea id="new-code" placeholder="Write your code here..."></textarea>
+  <button onclick="createNewFile()">🚀 Push</button>
+
   <script>
-    const repoOwner = "Dave8011";
-    const repoName = "Codex";
-    const codesPath = "Codes";
+    const GITHUB_USER = "Dave8011";
+    const REPO = "Codex";
+    const BASE_PATH = "Codes";
 
-    async function fetchJSON(url) {
-      const res = await fetch(url);
-      return res.json();
-    }
-
-    async function loadProjects() {
-      const container = document.getElementById("projects");
-      container.innerHTML = "";
-
-      const folders = await fetchJSON(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${codesPath}`);
+    // Load the file tree from GitHub API
+    async function loadTree() {
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${BASE_PATH}`);
+      const folders = await res.json();
+      const tree = document.getElementById("file-tree");
+      tree.innerHTML = "<ul>";
 
       for (const folder of folders) {
-        if (folder.type === "dir") {
-          const files = await fetchJSON(folder.url);
-          const div = document.createElement("div");
-          div.className = "project";
-          div.innerHTML = `<h2>${folder.name}</h2><ul></ul>`;
-          for (const file of files) {
-            const li = document.createElement("li");
-            li.innerHTML = `<button onclick="showCode('${file.name}', '${file.download_url}')">${file.name}</button>`;
-            div.querySelector("ul").appendChild(li);
-          }
-          container.appendChild(div);
+        tree.innerHTML += `<li><strong>${folder.name}</strong><ul id="f-${folder.name}"></ul></li>`;
+        const subRes = await fetch(folder.url);
+        const files = await subRes.json();
+        const ul = document.getElementById(`f-${folder.name}`);
+        for (const file of files) {
+          ul.innerHTML += `<li><a href="#" onclick="viewFile('${file.path}', '${file.name}')">${file.name}</a></li>`;
         }
       }
+
+      tree.innerHTML += "</ul>";
     }
 
-  async function showCode(fileName, url) {
-  const code = await fetch(url).then(r => r.text());
-  const ext = fileName.split('.').pop();
-  const highlighted = Prism.highlight(code, Prism.languages[ext] || Prism.languages.markup, ext);
-
-  const codeViewer = document.getElementById("code-viewer");
-  codeViewer.innerHTML = `
-    <h3>📄 ${fileName}</h3>
-    <pre><code class="language-${ext}">${highlighted}</code></pre>
-    <textarea id="edit-area" style="width:100%; height:200px;">${code}</textarea><br>
-    <button onclick="updateExistingFile('${fileName}', '${url}')">💾 Save</button>
-  `;
-}
-
-    async function updateExistingFile(fileName, url) {
-  const newCode = document.getElementById("edit-area").value;
-
-  // Infer folder from URL
-  const parts = url.split('/');
-  const folder = parts[parts.indexOf("contents") + 1]; // e.g. naturtint_site
-  const fullPath = `${codesPath}/${folder}/${fileName}`;
-
-  const res = await fetch("/api/push-file", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: fullPath, content: newCode })
-  });
-
-  const result = await res.json();
-  alert(result.message || "Saved!");
-  loadProjects(); // Refresh file tree
-}
-
-
-    function toggleTheme() {
-      document.body.classList.toggle("dark");
+    // Load and show a file
+    async function viewFile(path, name) {
+      const res = await fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${REPO}/main/${path}`);
+      const content = await res.text();
+      document.getElementById("editor").value = content;
+      document.getElementById("editor").dataset.path = path;
+      document.getElementById("file-title").textContent = name;
+      document.getElementById("code-viewer").style.display = "block";
     }
 
-    function toggleAddUI() {
-      document.getElementById("add-ui").classList.toggle("hidden");
+    // Save file to GitHub using your Vercel API
+    async function saveFile() {
+      const path = document.getElementById("editor").dataset.path;
+      const content = document.getElementById("editor").value;
+
+      const res = await fetch("/api/push-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, content })
+      });
+
+      const data = await res.json();
+      alert(data.message || "Saved!");
+      loadTree();
     }
 
-    async function pushToGitHub() {
-  const folder = document.getElementById("folder-input").value.trim();
-  const file = document.getElementById("file-input").value.trim();
-  const code = document.getElementById("code-input").value;
+    // Create a new file
+    async function createNewFile() {
+      const folder = document.getElementById("folder-name").value.trim();
+      const file = document.getElementById("file-name").value.trim();
+      const content = document.getElementById("new-code").value;
 
-  if (!folder || !file || !code) {
-    alert("All fields are required.");
-    return;
-  }
+      if (!folder || !file || !content) {
+        alert("All fields are required.");
+        return;
+      }
 
-  const fullPath = `${codesPath}/${folder}/${file}`;
+      const path = `${BASE_PATH}/${folder}/${file}`;
 
-  try {
-    const res = await fetch("/api/push-file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: fullPath, content: code })
-    });
+      const res = await fetch("/api/push-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, content })
+      });
 
-    const result = await res.json();
-    alert(result.message || "Done!");
-    loadProjects(); // Refresh UI
-  } catch (err) {
-    alert("❌ Error: " + err.message);
-  }
-}
+      const data = await res.json();
+      alert(data.message || "File created!");
+      loadTree();
+    }
 
+    loadTree();
   </script>
 </body>
 </html>
