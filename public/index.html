@@ -1,105 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Codex Viewer & Editor</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Codex Editor</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>📂 Codex – GitHub Viewer</h1>
-
+  <h1>Codex Editor</h1>
   <div id="file-tree"></div>
 
-  <div id="code-viewer" style="display: none;">
-    <h2 id="file-title"></h2>
-    <textarea id="editor"></textarea><br>
-    <button onclick="saveFile()">💾 Save</button>
+  <div id="editor-container" style="display:none;">
+    <h2 id="file-name"></h2>
+    <textarea id="editor" cols="80" rows="20"></textarea><br />
+    <button onclick="saveFile()">Save File</button>
   </div>
 
-  <hr>
+  <hr />
 
-  <h3>➕ Add New File</h3>
-  <input id="folder-name" placeholder="Folder name (e.g. vitashop_site)" />
-  <input id="file-name" placeholder="File name (e.g. index.html)" />
-  <textarea id="new-code" placeholder="Write your code here..."></textarea>
-  <button onclick="createNewFile()">🚀 Push</button>
+  <h3>Create New File</h3>
+  <input id="new-folder" placeholder="Folder name" />
+  <input id="new-file" placeholder="File name" />
+  <textarea id="new-content" placeholder="File content" cols="80" rows="10"></textarea><br />
+  <button onclick="createFile()">Create File</button>
 
   <script>
     const GITHUB_USER = "Dave8011";
     const REPO = "Codex";
     const BASE_PATH = "Codes";
 
-    // Load the file tree from GitHub API
-    async function loadTree() {
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${BASE_PATH}`);
-      const folders = await res.json();
-      const tree = document.getElementById("file-tree");
-      tree.innerHTML = "<ul>";
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return res.json();
+    }
 
-      for (const folder of folders) {
-        tree.innerHTML += `<li><strong>${folder.name}</strong><ul id="f-${folder.name}"></ul></li>`;
-        const subRes = await fetch(folder.url);
-        const files = await subRes.json();
-        const ul = document.getElementById(`f-${folder.name}`);
-        for (const file of files) {
-          ul.innerHTML += `<li><a href="#" onclick="viewFile('${file.path}', '${file.name}')">${file.name}</a></li>`;
+    async function loadFileTree() {
+      try {
+        const folders = await fetchJson(
+          `https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${BASE_PATH}`
+        );
+
+        const treeDiv = document.getElementById("file-tree");
+        treeDiv.innerHTML = "";
+
+        for (const folder of folders) {
+          const ul = document.createElement("ul");
+          const liFolder = document.createElement("li");
+          liFolder.textContent = folder.name;
+          ul.appendChild(liFolder);
+
+          const files = await fetchJson(folder.url);
+          const fileUl = document.createElement("ul");
+          for (const file of files) {
+            const fileLi = document.createElement("li");
+            const a = document.createElement("a");
+            a.href = "#";
+            a.textContent = file.name;
+            a.onclick = (e) => {
+              e.preventDefault();
+              openFile(file.path, file.name);
+            };
+            fileLi.appendChild(a);
+            fileUl.appendChild(fileLi);
+          }
+          ul.appendChild(fileUl);
+          treeDiv.appendChild(ul);
         }
+      } catch (e) {
+        alert("Failed to load file tree: " + e.message);
       }
-
-      tree.innerHTML += "</ul>";
     }
 
-    // Load and show a file
-    async function viewFile(path, name) {
-      const res = await fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${REPO}/main/${path}`);
-      const content = await res.text();
-      document.getElementById("editor").value = content;
-      document.getElementById("editor").dataset.path = path;
-      document.getElementById("file-title").textContent = name;
-      document.getElementById("code-viewer").style.display = "block";
+    async function openFile(path, name) {
+      try {
+        const res = await fetch(
+          `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO}/main/${path}`
+        );
+        if (!res.ok) throw new Error("Failed to load file content");
+        const text = await res.text();
+
+        document.getElementById("editor-container").style.display = "block";
+        document.getElementById("file-name").textContent = name;
+        const editor = document.getElementById("editor");
+        editor.value = text;
+        editor.dataset.path = path;
+      } catch (e) {
+        alert(e.message);
+      }
     }
 
-    // Save file to GitHub using your Vercel API
     async function saveFile() {
       const path = document.getElementById("editor").dataset.path;
       const content = document.getElementById("editor").value;
 
-      const res = await fetch("/api/push-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path, content })
-      });
-
-      const data = await res.json();
-      alert(data.message || "Saved!");
-      loadTree();
+      try {
+        const res = await fetch("/api/push-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path, content }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to save");
+        alert("File saved successfully");
+        loadFileTree();
+      } catch (e) {
+        alert("Error saving file: " + e.message);
+      }
     }
 
-    // Create a new file
-    async function createNewFile() {
-      const folder = document.getElementById("folder-name").value.trim();
-      const file = document.getElementById("file-name").value.trim();
-      const content = document.getElementById("new-code").value;
+    async function createFile() {
+      const folder = document.getElementById("new-folder").value.trim();
+      const file = document.getElementById("new-file").value.trim();
+      const content = document.getElementById("new-content").value;
 
-      if (!folder || !file || !content) {
-        alert("All fields are required.");
+      if (!folder || !file) {
+        alert("Folder and File name are required");
         return;
       }
 
       const path = `${BASE_PATH}/${folder}/${file}`;
 
-      const res = await fetch("/api/push-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path, content })
-      });
-
-      const data = await res.json();
-      alert(data.message || "File created!");
-      loadTree();
+      try {
+        const res = await fetch("/api/push-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path, content }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to create file");
+        alert("File created successfully");
+        loadFileTree();
+      } catch (e) {
+        alert("Error creating file: " + e.message);
+      }
     }
 
-    loadTree();
+    loadFileTree();
   </script>
 </body>
 </html>
