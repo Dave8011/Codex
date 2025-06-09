@@ -3,48 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Codex Projects</title>
+  <title>Codex Project Viewer</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🗂 Codex Projects</h1>
-    <p>Auto-detected folders in <code>/Codes</code>:</p>
-    <ul id="project-list">Loading...</ul>
+    <h1>🗂 Codex Project Viewer</h1>
+    <p>Folders & code files from <code>/Codes</code>:</p>
+    <div id="projects">Loading...</div>
   </div>
 
   <script>
     const repoOwner = "Dave8011";
     const repoName = "Codex";
-    const path = "Codes";
+    const codesPath = "Codes";
+    const baseApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents`;
 
-    const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("GitHub API Error");
+      return res.json();
+    }
 
     async function loadProjects() {
-      const list = document.getElementById("project-list");
-      list.innerHTML = "";
+      const container = document.getElementById("projects");
+      container.innerHTML = "";
 
       try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error("GitHub API error");
-        const data = await res.json();
+        const folders = await fetchJSON(`${baseApiUrl}/${codesPath}`);
 
-        data.forEach(item => {
-          if (item.type === "dir") {
-            const li = document.createElement("li");
-            li.innerHTML = `<a href="./Codes/${item.name}/index.html" target="_blank">📁 ${item.name}</a>`;
-            list.appendChild(li);
+        for (const folder of folders) {
+          if (folder.type === "dir") {
+            const folderName = folder.name;
+            const folderDiv = document.createElement("div");
+            folderDiv.classList.add("project");
+
+            const title = document.createElement("h2");
+            title.textContent = `📁 ${folderName}`;
+            folderDiv.appendChild(title);
+
+            const fileList = document.createElement("ul");
+            fileList.classList.add("file-list");
+
+            const files = await fetchJSON(`${baseApiUrl}/${codesPath}/${folderName}`);
+            for (const file of files) {
+              if (file.type === "file") {
+                const fileItem = document.createElement("li");
+                fileItem.innerHTML = `<button class="file-link">${file.name}</button>`;
+                fileItem.querySelector("button").addEventListener("click", () => showCode(file));
+                fileList.appendChild(fileItem);
+              }
+            }
+
+            folderDiv.appendChild(fileList);
+            container.appendChild(folderDiv);
           }
-        });
-
-        if (list.innerHTML === "") {
-          list.innerHTML = "<li>No folders found.</li>";
         }
 
       } catch (err) {
-        list.innerHTML = "<li>⚠️ Failed to load folder list.</li>";
         console.error(err);
+        container.innerHTML = "<p>⚠️ Failed to load data from GitHub.</p>";
       }
+    }
+
+    async function showCode(file) {
+      try {
+        const res = await fetch(file.download_url);
+        const code = await res.text();
+
+        let codeBox = document.getElementById("code-viewer");
+        if (!codeBox) {
+          codeBox = document.createElement("div");
+          codeBox.id = "code-viewer";
+          document.body.appendChild(codeBox);
+        }
+
+        codeBox.innerHTML = `
+          <h3>📄 ${file.name}</h3>
+          <pre><code>${escapeHtml(code)}</code></pre>
+        `;
+        codeBox.scrollIntoView({ behavior: "smooth" });
+
+      } catch (err) {
+        alert("Failed to load code.");
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
     }
 
     loadProjects();
