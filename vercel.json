@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/Codes/:folder",
-      "destination": "/Codes/:folder/index.html"
-    }
-  ]
-}
