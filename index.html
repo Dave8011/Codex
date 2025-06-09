@@ -8,11 +8,14 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Codex Projects</h1>
-  <ul id="project-list"></ul>
+  <div class="container">
+    <h1>🗂 Codex Projects</h1>
+    <p>Select a project to view its code:</p>
+    <ul id="project-list"></ul>
+  </div>
 
   <script>
-    // Manually list your folders here
+    // ✅ List your project folders here manually
     const folders = [
       "naturtint_site",
       "vitashop_site",
@@ -22,11 +25,7 @@
     const ul = document.getElementById("project-list");
     folders.forEach(folder => {
       const li = document.createElement("li");
-      const a = document.createElement("a");
-      a.href = `./Codes/${folder}/index.html`; // assumes each has index.html
-      a.textContent = folder;
-      a.target = "_blank";
-      li.appendChild(a);
+      li.innerHTML = `<a href="./Codes/${folder}/index.html" target="_blank">📁 ${folder}</a>`;
       ul.appendChild(li);
     });
   </script>
