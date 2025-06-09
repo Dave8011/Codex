@@ -2,26 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Codex Project Viewer</title>
+  <title>Codex Manager</title>
   <link rel="stylesheet" href="style.css" />
+  <link href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.css" rel="stylesheet" />
 </head>
 <body>
   <div class="container">
-    <h1>🗂 Codex Project Viewer</h1>
-    <p>Folders & code files from <code>/Codes</code>:</p>
-    <div id="projects">Loading...</div>
+    <h1>📁 Codex File Manager</h1>
+
+    <div class="toolbar">
+      <button onclick="toggleTheme()">🌓 Toggle Theme</button>
+      <button onclick="toggleAddUI()">➕ Add New File</button>
+    </div>
+
+    <div id="projects">Loading projects...</div>
+
+    <!-- Add File UI -->
+    <div id="add-ui" class="hidden">
+      <h2>➕ Create New File</h2>
+      <label>Folder Name: <input id="folder-input" placeholder="e.g. naturtint_site" /></label><br>
+      <label>File Name: <input id="file-input" placeholder="e.g. script.js" /></label><br>
+      <label>Code:</label><br>
+      <textarea id="code-input" placeholder="Paste your code here..."></textarea><br>
+      <button onclick="pushToGitHub()">🚀 Push to GitHub</button>
+    </div>
+
+    <!-- Code Viewer -->
+    <div id="code-viewer"></div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.js"></script>
   <script>
     const repoOwner = "Dave8011";
     const repoName = "Codex";
     const codesPath = "Codes";
-    const baseApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents`;
 
     async function fetchJSON(url) {
       const res = await fetch(url);
-      if (!res.ok) throw new Error("GitHub API Error");
       return res.json();
     }
 
@@ -29,70 +46,63 @@
       const container = document.getElementById("projects");
       container.innerHTML = "";
 
-      try {
-        const folders = await fetchJSON(`${baseApiUrl}/${codesPath}`);
+      const folders = await fetchJSON(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${codesPath}`);
 
-        for (const folder of folders) {
-          if (folder.type === "dir") {
-            const folderName = folder.name;
-            const folderDiv = document.createElement("div");
-            folderDiv.classList.add("project");
-
-            const title = document.createElement("h2");
-            title.textContent = `📁 ${folderName}`;
-            folderDiv.appendChild(title);
-
-            const fileList = document.createElement("ul");
-            fileList.classList.add("file-list");
-
-            const files = await fetchJSON(`${baseApiUrl}/${codesPath}/${folderName}`);
-            for (const file of files) {
-              if (file.type === "file") {
-                const fileItem = document.createElement("li");
-                fileItem.innerHTML = `<button class="file-link">${file.name}</button>`;
-                fileItem.querySelector("button").addEventListener("click", () => showCode(file));
-                fileList.appendChild(fileItem);
-              }
-            }
-
-            folderDiv.appendChild(fileList);
-            container.appendChild(folderDiv);
+      for (const folder of folders) {
+        if (folder.type === "dir") {
+          const files = await fetchJSON(folder.url);
+          const div = document.createElement("div");
+          div.className = "project";
+          div.innerHTML = `<h2>${folder.name}</h2><ul></ul>`;
+          for (const file of files) {
+            const li = document.createElement("li");
+            li.innerHTML = `<button onclick="showCode('${file.name}', '${file.download_url}')">${file.name}</button>`;
+            div.querySelector("ul").appendChild(li);
           }
+          container.appendChild(div);
         }
-
-      } catch (err) {
-        console.error(err);
-        container.innerHTML = "<p>⚠️ Failed to load data from GitHub.</p>";
       }
     }
 
-    async function showCode(file) {
-      try {
-        const res = await fetch(file.download_url);
-        const code = await res.text();
-
-        let codeBox = document.getElementById("code-viewer");
-        if (!codeBox) {
-          codeBox = document.createElement("div");
-          codeBox.id = "code-viewer";
-          document.body.appendChild(codeBox);
-        }
-
-        codeBox.innerHTML = `
-          <h3>📄 ${file.name}</h3>
-          <pre><code>${escapeHtml(code)}</code></pre>
-        `;
-        codeBox.scrollIntoView({ behavior: "smooth" });
-
-      } catch (err) {
-        alert("Failed to load code.");
-      }
+    async function showCode(fileName, url) {
+      const code = await fetch(url).then(r => r.text());
+      const ext = fileName.split('.').pop();
+      const highlighted = Prism.highlight(code, Prism.languages[ext] || Prism.languages.markup, ext);
+      document.getElementById("code-viewer").innerHTML = `
+        <h3>📄 ${fileName}</h3>
+        <pre><code class="language-${ext}">${highlighted}</code></pre>
+      `;
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement("div");
-      div.textContent = text;
-      return div.innerHTML;
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+    }
+
+    function toggleAddUI() {
+      document.getElementById("add-ui").classList.toggle("hidden");
+    }
+
+    async function pushToGitHub() {
+      const folder = document.getElementById("folder-input").value.trim();
+      const file = document.getElementById("file-input").value.trim();
+      const code = document.getElementById("code-input").value;
+
+      if (!folder || !file || !code) {
+        alert("All fields are required.");
+        return;
+      }
+
+      const fullPath = `${codesPath}/${folder}/${file}`;
+
+      const res = await fetch("/api/push-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: fullPath, content: code })
+      });
+
+      const result = await res.json();
+      alert(result.message || "Done!");
+      loadProjects(); // Reload UI
     }
 
     loadProjects();
