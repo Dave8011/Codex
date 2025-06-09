@@ -3,11 +3,11 @@ export default async function handler(req, res) {
 
   const { path, content } = req.body;
 
-  const token = process.env.GITHUB_TOKEN; // stored in Vercel project settings
+  const token = process.env.MY_GH_TOKEN; // ✅ Updated here
 
   const url = `https://api.github.com/repos/Dave8011/Codex/contents/${path}`;
 
-  // Check if file exists (for update vs create)
+  // Check if file exists
   const existing = await fetch(url, {
     headers: { Authorization: `token ${token}` },
   });
