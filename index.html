@@ -15,19 +15,32 @@
   </div>
 
   <script>
-    // ✅ List your project folders here manually
-    const folders = [
-      "naturtint_site",
-      "vitashop_site",
-      "img_codes"
-    ];
+ <script>
+  const repoOwner = "YOUR_USERNAME"; // Replace with your GitHub username
+  const repoName = "Codex";
 
-    const ul = document.getElementById("project-list");
-    folders.forEach(folder => {
-      const li = document.createElement("li");
-      li.innerHTML = `<a href="./Codes/${folder}/index.html" target="_blank">📁 ${folder}</a>`;
-      ul.appendChild(li);
-    });
-  </script>
+  const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/Codes`;
+
+  async function loadProjects() {
+    try {
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+
+      const list = document.getElementById("project-list");
+      data.forEach(item => {
+        if (item.type === "dir") {
+          const li = document.createElement("li");
+          li.innerHTML = `<a href="./Codes/${item.name}/index.html" target="_blank">📁 ${item.name}</a>`;
+          list.appendChild(li);
+        }
+      });
+    } catch (err) {
+      console.error("Failed to load folder list:", err);
+    }
+  }
+
+  loadProjects();
+</script>
+
 </body>
 </html>
