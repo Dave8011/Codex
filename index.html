@@ -83,29 +83,32 @@
     }
 
     async function pushToGitHub() {
-      const folder = document.getElementById("folder-input").value.trim();
-      const file = document.getElementById("file-input").value.trim();
-      const code = document.getElementById("code-input").value;
+  const folder = document.getElementById("folder-input").value.trim();
+  const file = document.getElementById("file-input").value.trim();
+  const code = document.getElementById("code-input").value;
 
-      if (!folder || !file || !code) {
-        alert("All fields are required.");
-        return;
-      }
+  if (!folder || !file || !code) {
+    alert("All fields are required.");
+    return;
+  }
 
-      const fullPath = `${codesPath}/${folder}/${file}`;
+  const fullPath = `${codesPath}/${folder}/${file}`;
 
-      const res = await fetch("/api/push-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: fullPath, content: code })
-      });
+  try {
+    const res = await fetch("/api/push-file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: fullPath, content: code })
+    });
 
-      const result = await res.json();
-      alert(result.message || "Done!");
-      loadProjects(); // Reload UI
-    }
+    const result = await res.json();
+    alert(result.message || "Done!");
+    loadProjects(); // Refresh UI
+  } catch (err) {
+    alert("❌ Error: " + err.message);
+  }
+}
 
-    loadProjects();
   </script>
 </body>
 </html>
