@@ -1,0 +1,34 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Codex Projects</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Codex Projects</h1>
+  <ul id="project-list"></ul>
+
+  <script>
+    // Manually list your folders here
+    const folders = [
+      "naturtint_site",
+      "vitashop_site",
+      "img_codes"
+    ];
+
+    const ul = document.getElementById("project-list");
+    folders.forEach(folder => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = `./Codes/${folder}/index.html`; // assumes each has index.html
+      a.textContent = folder;
+      a.target = "_blank";
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+  </script>
+</body>
+</html>
